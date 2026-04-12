@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState } from 'react'
 
 // Next Imports
 import Link from 'next/link'
-import { useParams } from 'next/navigation'
+import { useParams, useRouter } from 'next/navigation'
 
 // MUI Imports
 import Card from '@mui/material/Card'
@@ -82,6 +82,15 @@ type instanceStatusType = {
   }
 }
 
+interface PaginationData {
+  page: number
+  limit: number
+  total: number
+  totalPages: number
+  hasNextPage: boolean
+  hasPreviousPage: boolean
+}
+
 const fuzzyFilter: FilterFn<any> = (row, columnId, value, addMeta) => {
   // Rank the item
   const itemRank = rankItem(row.getValue(columnId), value)
@@ -143,7 +152,13 @@ const instanceStatusObj: instanceStatusType = {
 // Column Definitions
 const columnHelper = createColumnHelper<InstanceWithActionsType>()
 
-const InstanceListTable = ({ instanceData }: { instanceData?: InstanceType[] }) => {
+const InstanceListTable = ({
+  instanceData = [],
+  pagination
+}: {
+  instanceData?: InstanceType[]
+  pagination?: PaginationData
+}) => {
   // States
   const [rowSelection, setRowSelection] = useState({})
   const [data, setData] = useState(...[instanceData])
@@ -152,6 +167,13 @@ const InstanceListTable = ({ instanceData }: { instanceData?: InstanceType[] }) 
 
   // Hooks
   const { lang: locale } = useParams()
+  const router = useRouter()
+
+  // Sync state with incoming data
+  useEffect(() => {
+    setData(instanceData || [])
+    setFilteredData(instanceData || [])
+  }, [instanceData])
 
   const columns = useMemo<ColumnDef<InstanceWithActionsType, any>[]>(
     () => [
@@ -254,15 +276,19 @@ const InstanceListTable = ({ instanceData }: { instanceData?: InstanceType[] }) 
     },
     state: {
       rowSelection,
-      globalFilter
+      globalFilter,
+      pagination: {
+        pageIndex: Math.max(0, (pagination?.page || 1) - 1),
+        pageSize: pagination?.limit || 10
+      }
     },
     initialState: {
       pagination: {
-        pageSize: 10
+        pageIndex: Math.max(0, (pagination?.page || 1) - 1),
+        pageSize: pagination?.limit || 10
       }
     },
-    enableRowSelection: true, //enable row selection for all rows
-    // enableRowSelection: row => row.original.age > 18, // or enable row selection conditionally per row
+    enableRowSelection: true,
     globalFilterFn: fuzzyFilter,
     onRowSelectionChange: setRowSelection,
     getCoreRowModel: getCoreRowModel(),
@@ -275,30 +301,45 @@ const InstanceListTable = ({ instanceData }: { instanceData?: InstanceType[] }) 
     getFacetedMinMaxValues: getFacetedMinMaxValues()
   })
 
+  // Handle pagination change from URL
+  const handlePageChange = (newPage: number) => {
+    const limit = table.getState().pagination.pageSize
+
+    router.push(`?page=${newPage + 1}&limit=${limit}`)
+  }
+
+  // Handle page size change
+  const handlePageSizeChange = (newPageSize: number) => {
+    const newPage = 1
+
+    router.push(`?page=${newPage}&limit=${newPageSize}`)
+    table.setPageSize(newPageSize)
+  }
+
   return (
     <>
       <Card>
         <CardHeader title='Filters' />
         <TableFilters setData={setFilteredData} instanceData={data} />
         <Divider />
-        <div className='flex flex-wrap justify-between gap-4 p-6'>
-          <DebouncedInput
-            value={globalFilter ?? ''}
-            onChange={value => setGlobalFilter(String(value))}
-            placeholder='Search Instance'
-            className='max-sm:is-full'
-          />
-          <div className='flex flex-wrap items-center max-sm:flex-col gap-4 max-sm:is-full is-auto'>
-            <CustomTextField
-              select
-              value={table.getState().pagination.pageSize}
-              onChange={e => table.setPageSize(Number(e.target.value))}
-              className='flex-auto is-[70px] max-sm:is-full'
-            >
-              <MenuItem value='10'>10</MenuItem>
-              <MenuItem value='25'>25</MenuItem>
-              <MenuItem value='50'>50</MenuItem>
-            </CustomTextField>
+         <div className='flex flex-wrap justify-between gap-4 p-6'>
+           <DebouncedInput
+             value={globalFilter ?? ''}
+             onChange={value => setGlobalFilter(String(value))}
+             placeholder='Search Instance'
+             className='max-sm:is-full'
+           />
+           <div className='flex flex-wrap items-center max-sm:flex-col gap-4 max-sm:is-full is-auto'>
+             <CustomTextField
+               select
+               value={table.getState().pagination.pageSize}
+               onChange={e => handlePageSizeChange(Number(e.target.value))}
+               className='flex-auto is-[70px] max-sm:is-full'
+             >
+               <MenuItem value='10'>10</MenuItem>
+               <MenuItem value='25'>25</MenuItem>
+               <MenuItem value='50'>50</MenuItem>
+             </CustomTextField>
             <Button
               color='secondary'
               variant='tonal'
@@ -373,15 +414,15 @@ const InstanceListTable = ({ instanceData }: { instanceData?: InstanceType[] }) 
             )}
           </table>
         </div>
-        <TablePagination
-          component={() => <TablePaginationComponent table={table} />}
-          count={table.getFilteredRowModel().rows.length}
-          rowsPerPage={table.getState().pagination.pageSize}
-          page={table.getState().pagination.pageIndex}
-          onPageChange={(_, page) => {
-            table.setPageIndex(page)
-          }}
-        />
+         <TablePagination
+           component={() => <TablePaginationComponent table={table} />}
+           count={pagination?.total || table.getFilteredRowModel().rows.length}
+           rowsPerPage={table.getState().pagination.pageSize}
+           page={Math.max(0, (pagination?.page || 1) - 1)}
+           onPageChange={(_, page) => {
+             handlePageChange(page)
+           }}
+         />
       </Card>
     </>
   )

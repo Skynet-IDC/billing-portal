@@ -14,13 +14,31 @@ import { getInstanceData } from '@/app/server/vm-actions'
  * ! because we've used the server action for getting our static data.
  */
 
-const instancesList = async () => {
-  const data = await getInstanceData('hoadq@skynetidc.com', '?B!Sz93*yH')
+interface PageProps {
+  searchParams: Promise<{
+    page?: string
+    limit?: string
+    [key: string]: string | string[] | undefined
+  }>
+}
+
+const instancesList = async ({ searchParams }: PageProps) => {
+  const params = await searchParams
+
+  // Get pagination parameters
+  const page = params?.page ? parseInt(params.page, 10) : 1
+  const limit = params?.limit ? parseInt(params.limit, 10) : 10
+
+  // Fetch data with pagination
+  const result = await getInstanceData({ page, limit })
 
   return (
     <Grid container spacing={6}>
       <Grid size={{ xs: 12 }}>
-        <InstanceListTable instanceData={data} />
+        <InstanceListTable
+          instanceData={result.data}
+          pagination={result.pagination}
+        />
       </Grid>
     </Grid>
   )

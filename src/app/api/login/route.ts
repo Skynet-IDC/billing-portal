@@ -1,6 +1,9 @@
 // Next Imports
 import { NextResponse } from 'next/server'
 
+// Libs Imports
+import { backendRequest } from '@/libs/backendApi'
+
 export async function POST(req: Request) {
   try {
     // Vars
@@ -19,18 +22,23 @@ export async function POST(req: Request) {
       )
     }
 
-    // Fetch from portal backend API
-    const res = await fetch(`${process.env.BACKEND_URL}/api/auth/login`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      credentials: 'include',
-      body: JSON.stringify({
-        email,
-        password
-      })
-    })
+    // Fetch from portal backend API with automatic token injection
+    const res = await backendRequest(
+      '/api/auth/login',
+      req as any,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          email,
+          password
+        }),
+        skipToken: true // Skip token for login endpoint
+      }
+    )
 
     console.log('Response login: => ' + JSON.stringify({ status: res.status, statusText: res.statusText }))
 

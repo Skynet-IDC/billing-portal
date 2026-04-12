@@ -1,19 +1,20 @@
 'use server'
 
-export const getInstanceData = async (email: string, password: string) => {
+interface PaginationParams {
+  page?: number
+  limit?: number
+}
+
+export const getInstanceData = async ({ page = 1, limit = 10 }: PaginationParams = {}) => {
   try {
     // Vars
     const res = await fetch(`${process.env.BACKEND_URL}/api/vm/owner?ownerId=49`, {
-      method: 'POST',
+      method: 'GET',
       headers: {
         'Content-Type': 'application/json'
       },
-      credentials: 'include',
-      body: JSON.stringify({
-        email,
-        password
-      })
-    });
+      credentials: 'include'
+    })
 
     const data = await res.json();
 
@@ -23,7 +24,8 @@ export const getInstanceData = async (email: string, password: string) => {
     console.error('getInstanceData Error:', error)
   }
 
-  return [
+  // All data
+  const allData = [
     {
       id: 33,
       hostname: 'Span',
@@ -259,5 +261,23 @@ export const getInstanceData = async (email: string, password: string) => {
       instanceBrand: 'Hoeger-Powlowski'
     }
   ];
+
+  // Apply pagination
+  const startIndex = (page - 1) * limit;
+  const endIndex = startIndex + limit;
+  const paginatedData = allData.slice(startIndex, endIndex);
+
+  // Return paginated data with metadata
+  return {
+    data: paginatedData,
+    pagination: {
+      page,
+      limit,
+      total: allData.length,
+      totalPages: Math.ceil(allData.length / limit),
+      hasNextPage: endIndex < allData.length,
+      hasPreviousPage: page > 1
+    }
+  };
 }
 

@@ -72,7 +72,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     async (email: string, password: string): Promise<{ success: boolean; error?: string }> => {
       try {
         // Call your login API
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || '/api'}/login`, {
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/login`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'
